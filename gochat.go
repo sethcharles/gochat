@@ -2,6 +2,7 @@ package gochat
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -19,6 +20,14 @@ type Client struct {
 	In     chan string
 	Out    chan string
 	conn   net.Conn
+}
+
+// IRC message
+type Message struct {
+	Raw     string
+	Prefix  string
+	Command string
+	Params  string
 }
 
 // Open a TCP connection to the specified server
@@ -69,12 +78,25 @@ func (c *Client) Join(channel string) {
 // Sends raw IRC messages to the parser
 func (c *Client) receiver() {
 	for {
-		message, err := bufio.NewReader(c.conn).ReadString('\n')
+		data, err := bufio.NewReader(c.conn).ReadString('\n')
 		if err != nil {
 			fmt.Println("Error reading from connection!")
 			return
 		}
-		go c.ParseMessage(message)
+
+		go func() {
+			message, err := c.ParseMessage(data)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				switch {
+				case message.Command == "PING":
+					c.pong(message.Prefix)
+				default:
+					fmt.Printf("%v %v\n", message.Prefix, message.Command)
+				}
+			}
+		}()
 	}
 }
 
@@ -83,7 +105,6 @@ func (c *Client) receiver() {
 func (c *Client) transmitter() {
 	for message := range c.Out {
 		fmt.Fprintf(c.conn, "%v\n", message)
-		fmt.Printf("[TX] %v\n", message)
 	}
 }
 
@@ -93,30 +114,32 @@ func (c *Client) pong(s string) {
 }
 
 // Parses raw IRC messages
-func (c *Client) ParseMessage(message string) {
-	message = strings.TrimSpace(message)
-	switch {
-	case message[0] == ':':
-		parts := strings.SplitN(message, " ", 2)
-		if len(parts) == 2 {
-			fmt.Println("[" + parts[0] + "] " + parts[1])
+func (c *Client) ParseMessage(data string) (*Message, error) {
+	if len(data) == 0 {
+		return nil, errors.New("Empty IRC message!")
+	}
+
+	message := Message{Raw: data}
+
+	if data[0] == ':' {
+		if end := strings.Index(data, " "); end != -1 {
+			message.Prefix = data[1:end]
+			data = data[end:]
 		} else {
-			fmt.Println("=>" + message)
-		}
-
-	default:
-		parts := strings.SplitN(message, " ", 2)
-		cmd := strings.ToUpper(parts[0])
-
-		switch {
-		case cmd == "PING":
-			if len(parts) == 2 {
-				c.pong(parts[1])
-			} else {
-				fmt.Println("[ERR] Do not know to to PONG!")
-			}
-		default:
-			fmt.Println(message)
+			return nil, errors.New("Expected a command or parameter after the prefix!")
 		}
 	}
+
+	if end := strings.IndexAny(data, " \n"); end != -1 {
+		message.Command = data[:end]
+		data = data[end:]
+	} else {
+		return nil, errors.New("IRC message not terminated")
+	}
+
+	if len(data) > 0 {
+		message.Params = data
+	}
+
+	return &message, nil
 }
