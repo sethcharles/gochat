@@ -77,8 +77,9 @@ func (c *Client) Join(channel string) {
 // Receiver functionality for the IRC client
 // Sends raw IRC messages to the parser
 func (c *Client) receiver() {
+	reader := bufio.NewReader(c.conn)
 	for {
-		data, err := bufio.NewReader(c.conn).ReadString('\n')
+		data, err := reader.ReadString('\n')
 		if err != nil {
 			fmt.Println("Error reading from connection!")
 			return
@@ -103,8 +104,10 @@ func (c *Client) receiver() {
 // Transmitter functionality for the IRC client
 // Sends raw IRC messages to the server
 func (c *Client) transmitter() {
+	writer := bufio.NewWriter(c.conn)
 	for message := range c.Out {
-		fmt.Fprintf(c.conn, "%v\n", message)
+		writer.WriteString(message + "\n")
+		writer.Flush()
 	}
 }
 
@@ -124,15 +127,15 @@ func (c *Client) ParseMessage(data string) (*Message, error) {
 	if data[0] == ':' {
 		if end := strings.Index(data, " "); end != -1 {
 			message.Prefix = data[1:end]
-			data = data[end:]
+			data = data[end+1:]
 		} else {
 			return nil, errors.New("Expected a command or parameter after the prefix!")
 		}
 	}
 
 	if end := strings.IndexAny(data, " \n"); end != -1 {
-		message.Command = data[:end]
-		data = data[end:]
+		message.Command = strings.ToUpper(data[:end])
+		data = data[end+1:]
 	} else {
 		return nil, errors.New("IRC message not terminated")
 	}
