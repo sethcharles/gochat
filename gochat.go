@@ -111,6 +111,27 @@ func (c *Client) receiver() {
 				fmt.Println(err)
 			} else {
 				switch {
+				case message.Command == "PRIVMSG":
+					var target, text string
+
+					if index := strings.Index(message.Params, " "); index != -1 {
+						target = strings.ToUpper(message.Params[:index])
+					} else {
+						fmt.Println("Could not get PRIVMSG target")
+					}
+
+					if index := strings.Index(message.Params, ":"); index != -1 {
+						text = message.Params[index+1:]
+					} else {
+						fmt.Println("Could not get PRIVMSG text")
+					}
+
+					if channel, ok := c.Channels[target]; ok == true {
+						channel.Out <- text
+					} else {
+						fmt.Println("Could not find channel")
+					}
+
 				case message.Command == "PING":
 					c.pong(message.Params)
 				default:
