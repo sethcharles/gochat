@@ -79,8 +79,19 @@ func (c *Client) User(nick, name string) {
 }
 
 // Joins an IRC channel
-func (c *Client) Join(channel string) {
-	c.Out <- "JOIN " + channel
+func (c *Client) Join(name string) *Channel {
+	name = strings.ToUpper(name)
+	channel := Channel{
+		client: c,
+		In:     make(chan string),
+		Out:    make(chan string),
+	}
+
+	c.Channels[name] = &channel
+
+	c.Out <- "JOIN " + name
+
+	return &channel
 }
 
 // Receiver functionality for the IRC client
