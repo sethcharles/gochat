@@ -89,7 +89,7 @@ func (c *Client) User(nick, name string) {
 	c.Out <- "USER " + nick + " 0 * :" + name
 }
 
-// strings an IRC channel
+// Join an IRC channel
 func (c *Client) Join(name string) *Channel {
 	name = strings.ToUpper(name)
 	channel := Channel{
