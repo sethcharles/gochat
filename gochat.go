@@ -23,9 +23,10 @@ type Client struct {
 	conn     net.Conn
 }
 
+// IRC client channel type with data channels
 type Channel struct {
 	client *Client
-	Topic  string
+	Topic  chan string
 	In     chan string
 	Out    chan string
 }
@@ -88,11 +89,12 @@ func (c *Client) User(nick, name string) {
 	c.Out <- "USER " + nick + " 0 * :" + name
 }
 
-// Joins an IRC channel
+// strings an IRC channel
 func (c *Client) Join(name string) *Channel {
 	name = strings.ToUpper(name)
 	channel := Channel{
 		client: c,
+		Topic:  make(chan string),
 		In:     make(chan string),
 		Out:    make(chan string),
 	}
@@ -121,6 +123,40 @@ func (c *Client) receiver() {
 				fmt.Println(err)
 			} else {
 				switch {
+				case message.Command == "332":
+					params := message.Params
+
+					var msgto, topic string
+
+					// Find the target and advance the params past it
+					if index := strings.Index(params, " "); index != -1 {
+						params = params[index+1:]
+					} else {
+						fmt.Println("Could not get RPL_TOPIC target")
+					}
+
+					// Find the msgto. This is the channel name.
+					if index := strings.Index(params, " "); index != -1 {
+						msgto = strings.ToUpper(params[:index])
+						params = params[index+1:]
+					} else {
+						fmt.Println("Could not get RPL_TOPIC msgto")
+					}
+
+					// Find the topic text
+					if index := strings.Index(message.Params, ":"); index != -1 {
+						topic = params[index+1:]
+					} else {
+						fmt.Println("Could not get RPL_TOPIC text")
+					}
+
+					// Find the channel to send the topic to
+					if channel, ok := c.Channels[msgto]; ok == true {
+						channel.Topic <- topic
+					} else {
+						fmt.Printf("Could not find channel %v for RPL_TOPIC\n", msgto)
+					}
+
 				case message.Command == "PRIVMSG":
 					var target, text string
 
