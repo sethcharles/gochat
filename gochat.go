@@ -16,10 +16,18 @@ type ClientCfg struct {
 
 // IRC client type with in/out data channels
 type Client struct {
-	Config ClientCfg
+	Config   ClientCfg
+	Channels map[string]*Channel
+	In       chan string
+	Out      chan string
+	conn     net.Conn
+}
+
+type Channel struct {
+	client *Client
+	Topic  string
 	In     chan string
 	Out    chan string
-	conn   net.Conn
 }
 
 // IRC message
@@ -41,6 +49,7 @@ func (c *Client) Connect() error {
 
 	c.In = make(chan string)
 	c.Out = make(chan string)
+	c.Channels = make(map[string]*Channel)
 
 	go c.receiver()
 	go c.transmitter()
