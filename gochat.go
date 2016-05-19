@@ -112,7 +112,7 @@ func (c *Client) receiver() {
 			} else {
 				switch {
 				case message.Command == "PING":
-					c.pong(message.Prefix)
+					c.pong(message.Params)
 				default:
 					fmt.Printf("%v %v\n", message.Prefix, message.Command)
 				}
