@@ -6,8 +6,7 @@ standards for an IRC client.
 ## IRC Bot Example 
 
 ### Create the client
-    client := gochat.Client{}
-    client.Config = gochat.ClientCfg{"irc.freenode.net:6667", "gochat-bot"}
+    client := gochat.NewClient("irc.freenode.net:6667", "gochat-bot")
 
 ### Connect to the network
     err := client.Connect()
@@ -18,4 +17,9 @@ standards for an IRC client.
     }
 
 ### Join a channel
-    client.Join("#go-nuts")
+    channel := client.Join("#go-nuts")
+
+### Read messages from the channel
+    for {
+        fmt.Println(<-channel.Out)
+    }

@@ -38,6 +38,20 @@ type Message struct {
 	Params  string
 }
 
+// Construct a new Client instance
+func NewClient(network, nick string) *Client {
+	c := new(Client)
+
+	c.Config.Network = network
+	c.Config.Nick = nick
+
+	c.In = make(chan string)
+	c.Out = make(chan string)
+	c.Channels = make(map[string]*Channel)
+
+	return c
+}
+
 // Open a TCP connection to the specified server
 func (c *Client) Connect() error {
 	var err error
@@ -46,10 +60,6 @@ func (c *Client) Connect() error {
 	if err != nil {
 		return err
 	}
-
-	c.In = make(chan string)
-	c.Out = make(chan string)
-	c.Channels = make(map[string]*Channel)
 
 	go c.receiver()
 	go c.transmitter()
